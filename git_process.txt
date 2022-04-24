@@ -1,0 +1,141 @@
+    1  exit
+    2  #!/bin/sh
+    3  #
+    4  # NAME:  Anaconda3
+    5  # VER:   2020.11
+    6  # PLAT:  linux-64
+    7  # LINES: 589
+    8  # MD5:   a8f71d57955d4618ab3c1b02b963f667
+    9  export OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
+   10  unset LD_LIBRARY_PATH
+   11  if ! echo "$0" | grep '\.sh$' > /dev/null; then     printf 'Please run using "bash" or "sh", but not "." or "source"\\n' >&2;     return 1; fi
+   12  # Determine RUNNING_SHELL; if SHELL is non-zero use that.
+   13  if [ -n "$SHELL" ]; then     RUNNING_SHELL="$SHELL"; else     if [ "$(uname)" = "Darwin" ]; then         RUNNING_SHELL=/bin/bash;     else         if [ -d /proc ] && [ -r /proc ] && [ -d /proc/$$ ] && [ -r /proc/$$ ] && [ -L /proc/$$/exe ] && [ -r /proc/$$/exe ]; then             RUNNING_SHELL=$(readlink /proc/$$/exe);         fi;         if [ -z "$RUNNING_SHELL" ] || [ ! -f "$RUNNING_SHELL" ]; then             RUNNING_SHELL=$(ps -p $$ -o args= | sed 's|^-||');             case "$RUNNING_SHELL" in                 */*)                     ;;                 default)                     RUNNING_SHELL=$(which "$RUNNING_SHELL");                     ;;             esac;         fi;     fi; fi
+   14  # Some final fallback locations
+   15  if [ -z "$RUNNING_SHELL" ] || [ ! -f "$RUNNING_SHELL" ]; then     if [ -f /bin/bash ]; then         RUNNING_SHELL=/bin/bash;     else         if [ -f /bin/sh ]; then             RUNNING_SHELL=/bin/sh;         fi;     fi; fi
+   16  if [ -z "$RUNNING_SHELL" ] || [ ! -f "$RUNNING_SHELL" ]; then     printf 'Unable to determine your shell. Please set the SHELL env. var and re-run\\n' >&2;     exit 1; fi
+   17  THIS_DIR=$(DIRNAME=$(dirname "$0"); cd "$DIRNAME"; pwd)
+   18  THIS_FILE=$(basename "$0")
+   19  THIS_PATH="$THIS_DIR/$THIS_FILE"
+   20  PREFIX=$HOME/anaconda3
+   21  BATCH=0
+   22  FORCE=0
+   23  SKIP_SCRIPTS=0
+   24  TEST=0
+   25  REINSTALL=0
+   26  USAGE="
+   27  usage: $0 [options]
+   28  Installs Anaconda3 2020.11
+   29  -b           run install in batch mode (without manual intervention),
+   30               it is expected the license terms are agreed upon
+   31  -f           no error if install prefix already exists
+   32  -h           print this help message and exit
+   33  -p PREFIX    install prefix, defaults to $PREFIX, must not contain spaces.
+   34  -s           skip running pre/post-link/install scripts
+   35  -u           update an existing installation
+   36  -t           run package tests after installation (may install conda-build)
+   37  "
+   38  if which getopt > /dev/null 2>&1; then     OPTS=$(getopt bfhp:sut "$*" 2>/dev/null);     if [ ! $? ]; then         printf "%s\\n" "$USAGE";         exit 2;     fi;      eval set -- "$OPTS";      while true; do         case "$1" in             -h)                 printf "%s\\n" "$USAGE";                 exit 2;                 ;;             -b)                 BATCH=1;                 shift;                 ;;             -f)                 FORCE=1;                 shift;                 ;;             -p)                 PREFIX="$2";                 shift;                 shift;                 ;;             -s)                 SKIP_SCRIPTS=1;                 shift;                 ;;             -u)                 FORCE=1;                 shift;                 ;;             -t)                 TEST=1;                 shift;                 ;;             --)                 shift;                 break;                 ;;             *)                 printf "ERROR: did not recognize option '%s', please try -h\\n" "$1";                 exit 1;                 ;;         esac;     done; else     while getopts "bfhp:sut" x; do         case "$x" in             h)                 printf "%s\\n" "$USAGE";                 exit 2;             ;;             b)                 BATCH=1;                 ;;             f)                 FORCE=1;                 ;;             p)                 PREFIX="$OPTARG";                 ;;             s)                 SKIP_SCRIPTS=1;                 ;;             u)                 FORCE=1;                 ;;             t)                 TEST=1;                 ;;             ?)                 printf "ERROR: did not recognize option '%s', please try -h\\n" "$x";                 exit 1;                 ;;         esac;     done; fi
+   39  if [ "$BATCH" = "0" ] # interactive mode; then     if [ "$(uname -m)" != "x86_64" ]; then         printf "WARNING:\\n";         printf "    Your operating system appears not to be 64-bit, but you are trying to\\n";         printf "    install a 64-bit version of Anaconda3.\\n";         printf "    Are sure you want to continue the installation? [yes|no]\\n";         printf "[no] >>> ";         read -r ans;         if [ "$ans" != "yes" ] && [ "$ans" != "Yes" ] && [ "$ans" != "YES" ] &&            [ "$ans" != "y" ]   && [ "$ans" != "Y" ];         then             printf "Aborting installation\\n";             exit 2;         fi;     fi;     if [ "$(uname)" != "Linux" ]; then         printf "WARNING:\\n";         printf "    Your operating system does not appear to be Linux, \\n";         printf "    but you are trying to install a Linux version of Anaconda3.\\n";         printf "    Are sure you want to continue the installation? [yes|no]\\n";         printf "[no] >>> ";         read -r ans;         if [ "$ans" != "yes" ] && [ "$ans" != "Yes" ] && [ "$ans" != "YES" ] &&            [ "$ans" != "y" ]   && [ "$ans" != "Y" ];         then             printf "Aborting installation\\n";             exit 2;         fi;     fi;     printf "\\n";     printf "Welcome to Anaconda3 2020.11\\n";     printf "\\n";     printf "In order to continue the installation process, please review the license\\n";     printf "agreement.\\n";     printf "Please, press ENTER to continue\\n";     printf ">>> ";     read -r dummy;     pager="cat";     if command -v "more" > /dev/null 2>&1; then       pager="more";     fi
+   40      "$pager" <<EOF
+   41  ===================================
+   42  End User License Agreement - Anaconda Individual Edition
+   43  ===================================
+   44  Copyright 2015-2020, Anaconda, Inc.
+   45  All rights reserved under the 3-clause BSD License:
+   46  This End User License Agreement (the "Agreement") is a legal agreement between you and Anaconda, Inc. ("Anaconda") and governs your use of Anaconda Individual Edition (which was formerly known as Anaconda Distribution).
+   47  Subject to the terms of this Agreement, Anaconda hereby grants you a non-exclusive, non-transferable license to:
+   48    * Install and use the Anaconda Individual Edition (which was formerly known as Anaconda Distribution),
+   49    * Modify and create derivative works of sample source code delivered in Anaconda Individual Edition from Anaconda's repository; and
+   50    * Redistribute code files in source (if provided to you by Anaconda as source) and binary forms, with or without modification subject to the requirements set forth below.
+   51  Anaconda may, at its option, make available patches, workarounds or other updates to Anaconda Individual Edition. Unless the updates are provided with their separate governing terms, they are deemed part of Anaconda Individual Edition licensed to you as provided in this Agreement.  This Agreement does not entitle you to any support for Anaconda Individual Edition.
+   52  Anaconda reserves all rights not expressly granted to you in this Agreement.
+   53  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+   54    * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+   55    * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+   56    * Neither the name of Anaconda nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+   57  You acknowledge that, as between you and Anaconda, Anaconda owns all right, title, and interest, including all intellectual property rights, in and to Anaconda Individual Edition and, with respect to third-party products distributed with or through Anaconda Individual Edition, the applicable third-party licensors own all right, title and interest, including all intellectual property rights, in and to such products.  If you send or transmit any communications or materials to Anaconda suggesting or recommending changes to the software or documentation, including without limitation, new features or functionality relating thereto, or any comments, questions, suggestions or the like ("Feedback"), Anaconda is free to use such Feedback. You hereby assign to Anaconda all right, title, and interest in, and Anaconda is free to use, without any attribution or compensation to any party, any ideas, know-how, concepts, techniques or other intellectual property rights contained in the Feedback, for any purpose whatsoever, although Anaconda is not required to use any Feedback.
+   58  THIS SOFTWARE IS PROVIDED BY ANACONDA AND ITS CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ANACONDA BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   59  TO THE MAXIMUM EXTENT PERMITTED BY LAW, ANACONDA AND ITS AFFILIATES SHALL NOT BE LIABLE FOR ANY SPECIAL, INCIDENTAL, PUNITIVE OR CONSEQUENTIAL DAMAGES, OR ANY LOST PROFITS, LOSS OF USE, LOSS OF DATA OR LOSS OF GOODWILL, OR THE COSTS OF PROCURING SUBSTITUTE PRODUCTS, ARISING OUT OF OR IN CONNECTION WITH THIS AGREEMENT OR THE USE OR PERFORMANCE OF ANACONDA INDIVIDUAL EDITION, WHETHER SUCH LIABILITY ARISES FROM ANY CLAIM BASED UPON BREACH OF CONTRACT, BREACH OF WARRANTY, TORT (INCLUDING NEGLIGENCE), PRODUCT LIABILITY OR ANY OTHER CAUSE OF ACTION OR THEORY OF LIABILITY. IN NO EVENT WILL THE TOTAL CUMULATIVE LIABILITY OF ANACONDA AND ITS AFFILIATES UNDER OR ARISING OUT OF THIS AGREEMENT EXCEED US$10.00.
+   60  If you want to terminate this Agreement, you may do so by discontinuing use of Anaconda Individual Edition.  Anaconda may, at any time, terminate this Agreement and the license granted hereunder if you fail to comply with any term of this Agreement.   Upon any termination of this Agreement, you agree to promptly discontinue use of the Anaconda Individual Edition and destroy all copies in your possession or control. Upon any termination of this Agreement all provisions survive except for the licenses granted to you.
+   61  This Agreement is governed by and construed in accordance with the internal laws of the State of Texas without giving effect to any choice or conflict of law provision or rule that would require or permit the application of the laws of any jurisdiction other than those of the State of Texas. Any legal suit, action, or proceeding arising out of or related to this Agreement or the licenses granted hereunder by you must be instituted exclusively in the federal courts of the United States or the courts of the State of Texas in each case located in Travis County, Texas, and you irrevocably submit to the jurisdiction of such courts in any such suit, action, or proceeding.
+   62  Notice of Third Party Software Licenses
+   63  =======================================
+   64  Anaconda Individual Edition provides access to a repository which contains software packages or tools licensed on an open source basis from third parties and binary packages of these third party tools. These third party software packages or tools are provided on an "as is" basis and are subject to their respective license agreements as well as this Agreement and the Terms of Service for the Repository located at https://know.anaconda.com/TOS.html; provided, however, no restriction contained in the Terms of Service shall be construed so as to limit your ability to download the packages contained in Anaconda Individual Edition provided you comply with the license for each such package.  These licenses may be accessed from within the Anaconda Individual Edition software or at https://docs.anaconda.com/anaconda/pkg-docs. Information regarding which license is applicable is available from within many of the third party software packages and tools and at https://repo.anaconda.com/pkgs/main/ and https://repo.anaconda.com/pkgs/r/. Anaconda reserves the right, in its sole discretion, to change which third party tools are included in the repository accessible through Anaconda Individual Edition.
+   65  Intel Math Kernel Library
+   66  -------------------------
+   67  Anaconda Individual Edition provides access to re-distributable, run-time, shared-library files from the Intel Math Kernel Library ("MKL binaries").
+   68  Copyright 2018 Intel Corporation.  License available at https://software.intel.com/en-us/license/intel-simplified-software-license (the "MKL License").
+   69  You may use and redistribute the MKL binaries, without modification, provided the following conditions are met:
+   70    * Redistributions must reproduce the above copyright notice and the following terms of use in the MKL binaries and in the documentation and/or other materials provided with the distribution.
+   71    * Neither the name of Intel nor the names of its suppliers may be used to endorse or promote products derived from the MKL binaries without specific prior written permission.
+   72    * No reverse engineering, decompilation, or disassembly of the MKL binaries is permitted.
+   73  You are specifically authorized to use and redistribute the MKL binaries with your installation of Anaconda Individual Edition subject to the terms set forth in the MKL License. You are also authorized to redistribute the MKL binaries with Anaconda Individual Edition or in the Anaconda package that contains the MKL binaries. If needed, instructions for removing the MKL binaries after installation of Anaconda Individual Edition are available at https://docs.anaconda.com.
+   74  cuDNN Software
+   75  --------------
+   76  Anaconda Individual Edition also provides access to cuDNN software binaries ("cuDNN binaries") from NVIDIA Corporation. You are specifically authorized to use the cuDNN binaries with your installation of Anaconda Individual Edition subject to your compliance with the license agreement located at https://docs.nvidia.com/deeplearning/sdk/cudnn-sla/index.html. You are also authorized to redistribute the cuDNN binaries with an Anaconda Individual Edition package that contains the cuDNN binaries. You can add or remove the cuDNN binaries utilizing the install and uninstall features in Anaconda Individual Edition.
+   77  cuDNN binaries contain source code provided by NVIDIA Corporation.
+   78  Export; Cryptography Notice
+   79  ===========================
+   80  You must comply with all domestic and international export laws and regulations that apply to the software, which include restrictions on destinations, end users, and end use.  Anaconda Individual Edition includes cryptographic software. The country in which you currently reside may have restrictions on the import, possession, use, and/or re-export to another country, of encryption software. BEFORE using any encryption software, please check your country's laws, regulations and policies concerning the import, possession, or use, and re-export of encryption software, to see if this is permitted. See the Wassenaar Arrangement http://www.wassenaar.org/ for more information.
+   81  Anaconda has self-classified this software as Export Commodity Control Number (ECCN) 5D992.c, which includes mass market information security software using or performing cryptographic functions with asymmetric algorithms. No license is required for export of this software to non-embargoed countries.
+   82  The Intel Math Kernel Library contained in Anaconda Individual Edition is classified by Intel as ECCN 5D992.c with no license required for export to non-embargoed countries.
+   83  The following packages are included in the repository accessible through Anaconda Individual Edition that relate to cryptography:
+   84  openssl
+   85      The OpenSSL Project is a collaborative effort to develop a robust, commercial-grade, full-featured, and Open Source toolkit implementing the Transport Layer Security (TLS) and Secure Sockets Layer (SSL) protocols as well as a full-strength general purpose cryptography library.
+   86  pycrypto
+   87      A collection of both secure hash functions (such as SHA256 and RIPEMD160), and various encryption algorithms (AES, DES, RSA, ElGamal, etc.).
+   88  pyopenssl
+   89      A thin Python wrapper around (a subset of) the OpenSSL library.
+   90  kerberos (krb5, non-Windows platforms)
+   91      A network authentication protocol designed to provide strong authentication for client/server applications by using secret-key cryptography.
+   92  cryptography
+   93      A Python library which exposes cryptographic recipes and primitives.
+   94  pycryptodome
+   95      A fork of PyCrypto. It is a self-contained Python package of low-level cryptographic primitives.
+   96  pycryptodomex
+   97      A stand-alone version of pycryptodome.
+   98  libsodium
+   99      A software library for encryption, decryption, signatures, password hashing and more.
+  100  pynacl
+  101      A Python binding to the Networking and Cryptography library, a crypto library with the stated goal of improving usability, security and speed.
+  102  Last updated September 28, 2020
+  103  EOF
+  104       printf "\\n";     printf "Do you accept the license terms? [yes|no]\\n";     printf "[no] >>> ";     read -r ans;     while [ "$ans" != "yes" ] && [ "$ans" != "Yes" ] && [ "$ans" != "YES" ] &&           [ "$ans" != "no" ]  && [ "$ans" != "No" ]  && [ "$ans" != "NO" ];     do         printf "Please answer 'yes' or 'no':'\\n";         printf ">>> ";         read -r ans;     done;     if [ "$ans" != "yes" ] && [ "$ans" != "Yes" ] && [ "$ans" != "YES" ];     then         printf "The license agreement wasn't approved, aborting installation.\\n";         exit 2;     fi;     printf "\\n";     printf "Anaconda3 will now be installed into this location:\\n";     printf "%s\\n" "$PREFIX";     printf "\\n";     printf "  - Press ENTER to confirm the location\\n";     printf "  - Press CTRL-C to abort the installation\\n";     printf "  - Or specify a different location below\\n";     printf "\\n";     printf "[%s] >>> " "$PREFIX";     read -r user_prefix;     if [ "$user_prefix" != "" ]; then         case "$user_prefix" in             *\ * )                 printf "ERROR: Cannot install into directories with spaces\\n" >&2;                 exit 1;                 ;;             *)                 eval PREFIX="$user_prefix";                 ;;         esac;     fi; fi # !BATCH
+  105  git init
+  106  npm init
+  107  Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8Function Key 8
+  108  clear
+  109  ls
+  110  md myproj
+  111  cd myproj
+  112  mkdir myproj
+  113  cd myproj
+  114  git branch feature
+  115  git init
+  116  cd /
+  117  ls
+  118  exit
+  119  rm -rf .git
+  120  git init
+  121  git add .
+  122  git commit -m "initial"
+  123  git branch -M main
+  124  git remote add origin https://github.com/biteblizzard/census-aiops.git
+  125  git push -u origin main --force
+  126  git remote add origin https://github.com/RAVINDRAJSR1/census_aiops.git
+  127  git push -u origin main --force
+  128  git branch -M main
+  129  git remote add origin https://github.com/RAVINDRAJSR1/census_aiops.git
+  130  git branch -M main
+  131  git push -u origin main --force
+  132  rm -rf .git
+  133  git init
+  134  git add .
+  135  git commit -m "initial1"
+  136  git push -u origin main --force
+  137  git branch -M main
+  138  git remote add origin https://github.com/RAVINDRAJSR1/census_aiops.git
+  139  git push -u origin main --force
+  140  history >git process.txt
+  141  history >git_process.txt
